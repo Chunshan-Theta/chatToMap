@@ -218,7 +218,7 @@
             };
 
             // Send POST request
-            fetch("http://140.115.126.192:11434/api/chat", requestOptions)
+            fetch("http://<localhost>/api/chat", requestOptions)
             .then(response => response.json())
             .then(data => {
                 console.log('Success:', data);
