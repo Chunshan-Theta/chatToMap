@@ -57,9 +57,7 @@
 </head>
 <body>
     <div id="editor-container"> <!--左側心智圖-->
-        <textarea id="editor">
-              graph LR;\n    A[皮亞傑] --> B[《認知發展論》];\n    B --> C[兒童如何通過與環境的互動來建構知識];\n    D[維果斯基] --> E[《思想與語言》];\n    E --> F[強調了社會文化與語言在學習和知識建構中的重要性];\n    G[《心智的社會發展》] --> H[提出的“最近發展區”概念];\n    I[知識建構] --> J[\"由皮亞傑和維果斯基共同奠定基礎\"];\n    A --> K[《心智的社會發展》]\n    D --> K\n    G --> K\n    L[合作論證] --> M[ Mercer 和 Wegerif 的研究];\n    N[\"Words and Minds: How We Use Language to Think Together\"] --> O[探討語言在合作中的作用];\n    P[《Dialogic: Education for the Internet Age》] --> Q[提到對話式的論證能促進學生更深入的思考與學習];\n    R[Deanna Kuhn 的研究] --> S[強調論證是學習過程中的關鍵活動之一];\n    T[\"The Skills of Argument\"] --> U[討論了論證如何成為一種學習技能];\n    V[Collaborative Reasoning (CR)] --> W[專注於讓學生通過小組討論和論證來解決問題];\n    X[Jonathan Osborne 的研究] --> Y[利用合作論證來促進學生的科學學習和批判性思維];\n    L --> K\n    M--> K\n    P --> K\n    R --> K\n    T --> K
-        </textarea>
+        <textarea id="editor">graph LR;</textarea>
         <button type="button" id="generate-map">Generate Map</button>
         <div id="preview"></div>
     
@@ -107,6 +105,7 @@
             lines.forEach(line => {
                 // 移除 Mermaid 语法特定的字符和文本
                 let cleanedLine = line
+                    .replace(/```/g, "") // 刪除```
                     .replace(/^\s+/gm, "") // 刪除最前面的空白
                     .replace(/\(|\)/g, "") //刪除小括弧
                     .replace(/^mermaid/g,"") // 刪除開頭mermaid
@@ -134,37 +133,55 @@
     </script>
     <script> // Mind-Map data generate
     // Handle click
-    document.getElementById('generate-map').addEventListener('click', function() {
+    document.getElementById('generate-map').addEventListener('click',async function() {
             var chat = document.getElementById('chat');
             var message = chat.textContent.trim();
 
             if (message) {
                 console.log("message", message);
+                let llmReply = await genMindMap(chat.textContent.trim())
+                editor.setValue(llmReply);
 
                 
             }
         });
-    // call LLM to generate
-    const updateMindmapWithLLM = (newTexts) => {
-            let plainText = '';
-            // Send POST request
-            fetch('/your-api-endpoint', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ message: message })
-                }).then(response => response.json())
-                  .then(data => {
-                      console.log('Success:', data);
-                      chat.innerHTML += '<div><strong>Bot:</strong> ' + data.response + '</div>';
-                      chat.scrollTop = chat.scrollHeight; // Scroll to bottom
-                  }).catch((error) => {
-                      console.error('Error:', error);
-                  });
-            
+    // call LLM
+    const genMindMap = async (history) => {
+            const myHeaders = new Headers();
+            myHeaders.append("Content-Type", "application/json");
 
-            return plainText;
+            const raw = JSON.stringify({
+            "model": "llama3.1",
+            "messages": [
+                {
+                "role": "system",
+                "content": "使用 Mermaid 的心智圖語法來以下內容生成心智圖圖表。Mermaid 的心智圖（mindmap）語法用來創建網狀圖結構，表示概念和它們的層次關係。語法使用縮排來表示層次，每個節點是不同的概念，根節點位於最上層，其他子節點向下延伸。Mermaid規則包含：Mermaid 圖表中的頂點（方框）不應重複定義。每個頂點必須是唯一的。修正在圖中多次定義了頂點，統一使用一個頂點來表示，而不是多次重複定義。邊的語法應該使用頂點名稱。使用 Mermaid 的心智圖語法來以下內容生成心智圖圖表，請確定只輸出mermaid的內容並且確保沒有任何錯誤語法。"
+                },
+                {
+                "role": "user",
+                "content": history.replace(/^s*: /gm, '')+"\n\n使用 Mermaid 的心智圖語法來以上內容生成心智圖圖表，請確定只輸出mermaid的內容並且確保沒有任何錯誤語法。"
+                }
+            ],
+            "stream": false
+            });
+
+            const requestOptions = {
+            method: "POST",
+            headers: myHeaders,
+            body: raw,
+            redirect: "follow"
+            };
+
+            // Send POST request
+            const response = await fetch("http:/<ip>:11434/api/chat", requestOptions)
+            .then(response => response.json())
+            .then(data => {
+                console.log('Success:', data);
+                console.log('Success:', data.message);
+                console.log('Success:', data.message.content);
+                return data.message.content;
+            })
+            return response
         };
     </script>
     <script> // Chatroom
@@ -172,7 +189,7 @@
         const toggleSwitch = document.getElementById('toggleSwitch');
 
         // Handle chat message sending
-        document.getElementById('send-button').addEventListener('click',async function() {
+        async function sendMSG() {
             var messageInput = document.getElementById('message-input');
             var message = messageInput.value.trim();
 
@@ -191,6 +208,13 @@
                     
                 }
             }
+        }
+        document.getElementById('send-button').addEventListener('click',sendMSG);
+        document.getElementById('message-input').addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') { // 檢查是否按下「輸入鍵」
+                event.preventDefault(); // 防止默認的行為（例如換行）
+                sendMSG();
+            }
         });
         // call LLM
         const chatWithLLM = async (history, newText) => {
@@ -202,11 +226,15 @@
             "messages": [
                 {
                 "role": "system",
-                "content": "你是論證小組的一員，請參考過往紀錄來挑戰、回應和質疑對方的問題和陳述。請直接回答，省略多餘的標點符號和說明。"
+                "content": "你是論證小組的一員，請參考過往紀錄來挑戰、回應和質疑對方的問題和陳述。請直接回答，省略多餘的標點符號和標籤，只回答自己的部分，不要代替別人回答。"
                 },
                 {
                 "role": "user",
-                "content": history+"\n\nI: "+newText
+                "content": history
+                },
+                {
+                "role": "user",
+                "content": "I: "+newText
                 }
             ],
             "stream": false
