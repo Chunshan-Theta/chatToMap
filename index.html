@@ -56,14 +56,20 @@
     </style>
 </head>
 <body>
-    <div id="editor-container">
+    <div id="editor-container"> <!--左側心智圖-->
         <textarea id="editor">
               graph LR;\n    A[皮亞傑] --> B[《認知發展論》];\n    B --> C[兒童如何通過與環境的互動來建構知識];\n    D[維果斯基] --> E[《思想與語言》];\n    E --> F[強調了社會文化與語言在學習和知識建構中的重要性];\n    G[《心智的社會發展》] --> H[提出的“最近發展區”概念];\n    I[知識建構] --> J[\"由皮亞傑和維果斯基共同奠定基礎\"];\n    A --> K[《心智的社會發展》]\n    D --> K\n    G --> K\n    L[合作論證] --> M[ Mercer 和 Wegerif 的研究];\n    N[\"Words and Minds: How We Use Language to Think Together\"] --> O[探討語言在合作中的作用];\n    P[《Dialogic: Education for the Internet Age》] --> Q[提到對話式的論證能促進學生更深入的思考與學習];\n    R[Deanna Kuhn 的研究] --> S[強調論證是學習過程中的關鍵活動之一];\n    T[\"The Skills of Argument\"] --> U[討論了論證如何成為一種學習技能];\n    V[Collaborative Reasoning (CR)] --> W[專注於讓學生通過小組討論和論證來解決問題];\n    X[Jonathan Osborne 的研究] --> Y[利用合作論證來促進學生的科學學習和批判性思維];\n    L --> K\n    M--> K\n    P --> K\n    R --> K\n    T --> K
         </textarea>
+        <button type="button" id="generate-map">Generate Map</button>
         <div id="preview"></div>
+    
     </div>
-    <div id="chat-container">
+    <div id="chat-container"> <!--右側聊天室-->
         <div id="chat"></div>
+        <div id="toolbox">
+            <input type="checkbox" id="toggleSwitch"/>與LLM聊天
+        </div>
+
         <form id="message-form">
             <input type="text" id="message-input" placeholder="Type your message...">
             <button type="button" id="send-button">Send</button>
@@ -87,7 +93,7 @@
 
         function renderMermaid() {
             var code = convertMermaidToPlainText(editor.getValue());
-            console.log("code", code);
+            // console.log("code", code);
             document.getElementById('preview').innerHTML = '<div class="mermaid">' + code + '</div>';
             mermaid.init();  // Render Mermaid
         }
@@ -124,23 +130,20 @@
 
         
     </script>
-    <script> // Chatroom
-        // Handle chat message sending
-        document.getElementById('send-button').addEventListener('click', function() {
-            var messageInput = document.getElementById('message-input');
-            var message = messageInput.value.trim();
+    <script> // Mind-Map data generate
+    // Handle click
+    document.getElementById('generate-map').addEventListener('click', function() {
+            var chat = document.getElementById('chat');
+            var message = chat.textContent.trim();
 
             if (message) {
-                var chat = document.getElementById('chat');
-                chat.innerHTML += '<div>' + message + '</div>';
-                messageInput.value = '';
+                console.log("message", message);
 
                 
             }
         });
-
-        // call LLM
-        const updateMindmapWithLLM = (newTexts) => {
+    // call LLM to generate
+    const updateMindmapWithLLM = (newTexts) => {
             let plainText = '';
             // Send POST request
             fetch('/your-api-endpoint', {
@@ -162,5 +165,67 @@
             return plainText;
         };
     </script>
+    <script> // Chatroom
+        // chat with LLM
+        const toggleSwitch = document.getElementById('toggleSwitch');
+
+        // Handle chat message sending
+        document.getElementById('send-button').addEventListener('click', function() {
+            var messageInput = document.getElementById('message-input');
+            var message = messageInput.value.trim();
+
+            if (message) {
+                var chat = document.getElementById('chat');
+                chat.innerHTML += '<div> I: ' + message + '\n\n</div>';
+                messageInput.value = '';
+
+                if (toggleSwitch.checked) {
+                    try {
+                        let LLMReply = chatWithLLM(chat.textContent.trim(),message);
+                        chat.innerHTML += '<div> user A: ' + LLMReply + '\n</div>';
+                    } catch (error) {
+                        console.error('Error:', error);
+                    }
+                    
+                }
+            }
+        });
+        // call LLM
+        const chatWithLLM = (history, newText) => {
+            const myHeaders = new Headers();
+            myHeaders.append("Content-Type", "application/json");
+
+            const raw = JSON.stringify({
+            "model": "llama3.1",
+            "messages": [
+                {
+                "role": "system",
+                "content": "你是論證小組的一員，請參考過往紀錄來挑戰、回應和質疑對方的問題和陳述。請直接回答，省略多餘的標點符號和說明。"
+                },
+                {
+                "role": "user",
+                "content": history+"\n\nI: "+newText
+                }
+            ],
+            "stream": false
+            });
+
+            const requestOptions = {
+            method: "POST",
+            headers: myHeaders,
+            body: raw,
+            redirect: "follow"
+            };
+
+            // Send POST request
+            fetch("http://140.115.126.192:11434/api/chat", requestOptions)
+            .then(response => response.json())
+            .then(data => {
+                console.log('Success:', data);
+                return data.response;
+            })
+        };
+    </script>
+
 </body>
 </html>
