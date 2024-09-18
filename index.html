@@ -220,7 +220,7 @@
             };
 
             // Send POST request
-            const response = await fetch("http://140.115.126.192:11434/api/chat", requestOptions)
+            const response = await fetch("http://<ip>:11434/api/chat", requestOptions)
             .then(response => response.json())
             .then(data => {
                 console.log('Success:', data);
