@@ -106,11 +106,13 @@
 
             lines.forEach(line => {
                 // 移除 Mermaid 语法特定的字符和文本
-                let cleanedLine = line.replace(/\(|\)/g, "") //刪除小括弧
-                    .replace(/\\n/g, ";\n") // 刪除跳行
+                let cleanedLine = line
+                    .replace(/^\s+/gm, "") // 刪除最前面的空白
+                    .replace(/\(|\)/g, "") //刪除小括弧
+                    .replace(/^mermaid/g,"") // 刪除開頭mermaid
+                    .replace(/\\n/g, "\n") // 刪除跳行
                     .replace(/\\"/g, "\"") // 刪除\"
-                    .replace(/^\s+/gm, '') // 刪除最前面的空白
-                    .replace(/  /gm, ';') // 刪除多餘空白
+                    .replace(/   /gm, ';') // 刪除多餘空白
                     .trim();
                 if (cleanedLine) {
                     plainText += cleanedLine + '\n';
@@ -170,7 +172,7 @@
         const toggleSwitch = document.getElementById('toggleSwitch');
 
         // Handle chat message sending
-        document.getElementById('send-button').addEventListener('click', function() {
+        document.getElementById('send-button').addEventListener('click',async function() {
             var messageInput = document.getElementById('message-input');
             var message = messageInput.value.trim();
 
@@ -181,8 +183,8 @@
 
                 if (toggleSwitch.checked) {
                     try {
-                        let LLMReply = chatWithLLM(chat.textContent.trim(),message);
-                        chat.innerHTML += '<div> user A: ' + LLMReply + '\n</div>';
+                        let llmReply = await chatWithLLM(chat.textContent.trim(),message)
+                        chat.innerHTML += '<div> user A: ' + llmReply + '\n</div>';
                     } catch (error) {
                         console.error('Error:', error);
                     }
@@ -191,7 +193,7 @@
             }
         });
         // call LLM
-        const chatWithLLM = (history, newText) => {
+        const chatWithLLM = async (history, newText) => {
             const myHeaders = new Headers();
             myHeaders.append("Content-Type", "application/json");
 
@@ -218,12 +220,15 @@
             };
 
             // Send POST request
-            fetch("http://<localhost>/api/chat", requestOptions)
+            const response = await fetch("http://140.115.126.192:11434/api/chat", requestOptions)
             .then(response => response.json())
             .then(data => {
                 console.log('Success:', data);
-                return data.response;
+                console.log('Success:', data.message);
+                console.log('Success:', data.message.content);
+                return data.message.content;
             })
+            return response
         };
     </script>
 
