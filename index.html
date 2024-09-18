@@ -3,33 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mermaid Editor</title>
+    <title>Mermaid Editor and Chatbox</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.css">
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
+            display: flex;
+            height: 100vh;
+        }
+        #editor-container, #chat-container {
+            flex: 1;
+            padding: 10px;
+        }
+        #editor-container {
+            border-right: 1px solid #ccc;
+            overflow: auto;
         }
         #editor {
-            height: 300px;
+            height: calc(100vh - 50px);
             width: 100%;
         }
         #preview {
             margin-top: 20px;
         }
+        #chat-container {
+            display: flex;
+            flex-direction: column;
+        }
+        #chat {
+            flex: 1;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            margin-bottom: 10px;
+        }
+        #message-form {
+            display: flex;
+        }
+        #message-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+        #send-button {
+            padding: 10px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
-    <textarea id="editor">
-          graph LR;\n    A[皮亞傑] --> B[《認知發展論》];\n    B --> C[兒童如何通過與環境的互動來建構知識];\n    D[維果斯基] --> E[《思想與語言》];\n    E --> F[強調了社會文化與語言在學習和知識建構中的重要性];\n    G[《心智的社會發展》] --> H[提出的“最近發展區”概念];\n    I[知識建構] --> J[\"由皮亞傑和維果斯基共同奠定基礎\"];\n    A --> K[《心智的社會發展》]\n    D --> K\n    G --> K\n    L[合作論證] --> M[ Mercer 和 Wegerif 的研究];\n    N[\"Words and Minds: How We Use Language to Think Together\"] --> O[探討語言在合作中的作用];\n    P[《Dialogic: Education for the Internet Age》] --> Q[提到對話式的論證能促進學生更深入的思考與學習];\n    R[Deanna Kuhn 的研究] --> S[強調論證是學習過程中的關鍵活動之一];\n    T[\"The Skills of Argument\"] --> U[討論了論證如何成為一種學習技能];\n    V[Collaborative Reasoning (CR)] --> W[專注於讓學生通過小組討論和論證來解決問題];\n    X[Jonathan Osborne 的研究] --> Y[利用合作論證來促進學生的科學學習和批判性思維];\n    L --> K\n    M--> K\n    P --> K\n    R --> K\n    T --> K
-    </textarea>
-    <div id="preview"></div>
+    <div id="editor-container">
+        <textarea id="editor">
+              graph LR;\n    A[皮亞傑] --> B[《認知發展論》];\n    B --> C[兒童如何通過與環境的互動來建構知識];\n    D[維果斯基] --> E[《思想與語言》];\n    E --> F[強調了社會文化與語言在學習和知識建構中的重要性];\n    G[《心智的社會發展》] --> H[提出的“最近發展區”概念];\n    I[知識建構] --> J[\"由皮亞傑和維果斯基共同奠定基礎\"];\n    A --> K[《心智的社會發展》]\n    D --> K\n    G --> K\n    L[合作論證] --> M[ Mercer 和 Wegerif 的研究];\n    N[\"Words and Minds: How We Use Language to Think Together\"] --> O[探討語言在合作中的作用];\n    P[《Dialogic: Education for the Internet Age》] --> Q[提到對話式的論證能促進學生更深入的思考與學習];\n    R[Deanna Kuhn 的研究] --> S[強調論證是學習過程中的關鍵活動之一];\n    T[\"The Skills of Argument\"] --> U[討論了論證如何成為一種學習技能];\n    V[Collaborative Reasoning (CR)] --> W[專注於讓學生通過小組討論和論證來解決問題];\n    X[Jonathan Osborne 的研究] --> Y[利用合作論證來促進學生的科學學習和批判性思維];\n    L --> K\n    M--> K\n    P --> K\n    R --> K\n    T --> K
+        </textarea>
+        <div id="preview"></div>
+    </div>
+    <div id="chat-container">
+        <div id="chat"></div>
+        <form id="message-form">
+            <input type="text" id="message-input" placeholder="Type your message...">
+            <button type="button" id="send-button">Send</button>
+        </form>
+    </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/markdown/markdown.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
-    <script>
+    <script> // Mind-Map
         // Initialize CodeMirror
         var editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
             mode: 'markdown',
@@ -77,6 +121,46 @@
 
         // Initial render
         renderMermaid();
+
+        
+    </script>
+    <script> // Chatroom
+        // Handle chat message sending
+        document.getElementById('send-button').addEventListener('click', function() {
+            var messageInput = document.getElementById('message-input');
+            var message = messageInput.value.trim();
+
+            if (message) {
+                var chat = document.getElementById('chat');
+                chat.innerHTML += '<div>' + message + '</div>';
+                messageInput.value = '';
+
+                
+            }
+        });
+
+        // call LLM
+        const updateMindmapWithLLM = (newTexts) => {
+            let plainText = '';
+            // Send POST request
+            fetch('/your-api-endpoint', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message: message })
+                }).then(response => response.json())
+                  .then(data => {
+                      console.log('Success:', data);
+                      chat.innerHTML += '<div><strong>Bot:</strong> ' + data.response + '</div>';
+                      chat.scrollTop = chat.scrollHeight; // Scroll to bottom
+                  }).catch((error) => {
+                      console.error('Error:', error);
+                  });
+            
+
+            return plainText;
+        };
     </script>
 </body>
 </html>
