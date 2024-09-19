@@ -79,21 +79,31 @@
     <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
     <script> // Mind-Map
         // Initialize CodeMirror
-        var editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
+        let editor = CodeMirror.fromTextArea(document.getElementById('editor'), {
             mode: 'markdown',
             lineNumbers: true,
             lineWrapping: true,
             theme: 'default'
         });
+        let successCode = "";
 
         // Initialize Mermaid
         mermaid.initialize({ startOnLoad: false });
 
-        function renderMermaid() {
-            var code = convertMermaidToPlainText(editor.getValue());
+        async function renderMermaid() {
+            let code = convertMermaidToPlainText(editor.getValue());
             // console.log("code", code);
-            document.getElementById('preview').innerHTML = '<div class="mermaid">' + code + '</div>';
-            mermaid.init();  // Render Mermaid
+            try {
+                await mermaid.parse(code);
+                document.getElementById('preview').innerHTML = '<div class="mermaid">' + code + '</div>';
+                mermaid.init();  // Render Mermaid
+                successCode = code.trim();
+                console.log("update successCode: ", successCode);
+            } catch (e) {
+                console.error("Mermaid Error: ", e);
+            }
+
+            
         }
         
         // 将 Mermaid 图形代码转换为纯文本
@@ -132,39 +142,95 @@
         
     </script>
     <script> // Mind-Map data generate
+    let onLoadingH1 = false;
+    let onLoadingH2 = false;
+    let latestContent = "";
     // Handle click
     document.getElementById('generate-map').addEventListener('click',async function() {
             var chat = document.getElementById('chat');
             var message = chat.textContent.trim();
 
             if (message) {
+                document.getElementById('generate-map').disabled = true;
                 console.log("message", message);
-                let llmReply = await genMindMap(chat.textContent.trim())
-                editor.setValue(llmReply);
+                onLoadingH1 = true;
+                editor.setValue( await genMindMap(chat.textContent.trim()));
+                latestContent = chat.textContent.trim();
+                onLoadingH1 = false;
+                document.getElementById('generate-map').disabled = false;
 
                 
             }
         });
+
+    // Handle mindmap - auto update the map when chatroom refreash
+    async function autoUpdateMap() {
+        var chat = document.getElementById('chat');
+        var message = chat.textContent.trim();
+        latestContent = latestContent.trim();
+
+        if (message && latestContent !=  chat.textContent.trim()) {
+                if (onLoadingH1 || onLoadingH2) return;
+                console.log("message", message);
+                onLoadingH2 = true;
+                let newContent = chat.textContent.replace(latestContent,"").trim();
+                let newMermaid = await genMindMap(newContent,true);
+                try {
+                    await mermaid.parse(code);
+                    editor.setValue(code);
+                    latestContent = chat.textContent.trim();
+
+                } catch (e) {
+                    console.error("Mermaid Error: ", e);
+                }
+                onLoadingH2 = false;
+
+        }
+
+    }
+
+    // 每5000毫秒（5秒）執行一次myFunction
+    setInterval(autoUpdateMap, 5000);
+
     // call LLM
-    const genMindMap = async (history) => {
+    const genMindMap = async (history, extendMode) => {
             const myHeaders = new Headers();
             myHeaders.append("Content-Type", "application/json");
 
             const raw = JSON.stringify({
             "model": "llama3.1",
-            "messages": [
-                {
-                "role": "system",
-                "content": "使用 Mermaid 的心智圖語法來以下內容生成心智圖圖表。Mermaid 的心智圖（mindmap）語法用來創建網狀圖結構，表示概念和它們的層次關係。語法使用縮排來表示層次，每個節點是不同的概念，根節點位於最上層，其他子節點向下延伸。Mermaid規則包含：Mermaid 圖表中的頂點（方框）不應重複定義。每個頂點必須是唯一的。修正在圖中多次定義了頂點，統一使用一個頂點來表示，而不是多次重複定義。邊的語法應該使用頂點名稱。使用 Mermaid 的心智圖語法來以下內容生成心智圖圖表，請確定只輸出mermaid的內容並且確保沒有任何錯誤語法。"
-                },
-                {
-                "role": "user",
-                "content": history.replace(/^s*: /gm, '')+"\n\n使用 Mermaid 的心智圖語法來以上內容生成心智圖圖表，請確定只輸出mermaid的內容並且確保沒有任何錯誤語法。"
-                }
-            ],
+            "messages": extendMode ? [
+                    {
+                        "role": "system",
+                        "content": "使用 Mermaid 的心智圖語法來將新內容添加進入當前心智圖，請確定只輸出mermaid的內容，並且不刪除當前心智圖原有內容。Mermaid 的心智圖（mindmap）語法用來創建網狀圖結構，表示概念和它們的層次關係。語法使用縮排來表示層次，每個節點是不同的概念，根節點位於最上層，其他子節點向下延伸。Mermaid規則包含：Mermaid 圖表中的頂點（方框）不應重複定義。每個頂點必須是唯一的。修正在圖中多次定義了頂點，統一使用一個頂點來表示，而不是多次重複定義。邊的語法應該使用頂點名稱。使用 Mermaid 的心智圖語法來將新內容添加進入當前心智圖，請確定只輸出mermaid的內容，並且不刪除當前心智圖原有內容。"
+                    },
+                    {
+                        "role": "user",
+                        "content": "當前心智圖: \n\n"+successCode
+                    },
+                    {
+                        "role": "user",
+                        "content": "新內容：\n\n"+history.replace(/^s*: /gm, '')
+                    },
+                    {
+                        "role": "assistant",
+                        "content": "仔細確認以上內容後，使用 Mermaid 的心智圖語法來將新內容添加進入當前心智圖，並且不刪除當前心智圖原有內容。請確定只輸出mermaid的內容。以下是合併後的心智圖內容："
+                    }
+                ] : [
+                    {
+                        "role": "system",
+                        "content": "使用 Mermaid 的心智圖語法來以下內容生成心智圖圖表。Mermaid 的心智圖（mindmap）語法用來創建網狀圖結構，表示概念和它們的層次關係。語法使用縮排來表示層次，每個節點是不同的概念，根節點位於最上層，其他子節點向下延伸。Mermaid規則包含：Mermaid 圖表中的頂點（方框）不應重複定義。每個頂點必須是唯一的。修正在圖中多次定義了頂點，統一使用一個頂點來表示，而不是多次重複定義。邊的語法應該使用頂點名稱。使用 Mermaid 的心智圖語法來以下內容生成心智圖圖表，請確定只輸出mermaid的內容並且確保沒有任何錯誤語法。"
+                    },
+                    {
+                        "role": "user",
+                        "content": history.replace(/^s*: /gm, '')+"\n\n使用 Mermaid 的心智圖語法來以上內容生成心智圖圖表，請確定只輸出mermaid的內容並且確保沒有任何錯誤語法。"
+                    }
+                ],
             "stream": false
             });
 
+
+            console.log("raw: ", raw);
             const requestOptions = {
             method: "POST",
             headers: myHeaders,
@@ -176,13 +242,15 @@
             const response = await fetch("http:/<ip>:11434/api/chat", requestOptions)
             .then(response => response.json())
             .then(data => {
-                console.log('Success:', data);
-                console.log('Success:', data.message);
-                console.log('Success:', data.message.content);
+                // console.log('Success:', data);
+                // console.log('Success:', data.message);
+                // console.log('Success:', data.message.content);
                 return data.message.content;
             })
             return response
         };
+    
+    
     </script>
     <script> // Chatroom
         // chat with LLM
