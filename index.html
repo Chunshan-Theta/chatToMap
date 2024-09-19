@@ -176,14 +176,15 @@
                 let newContent = chat.textContent.replace(latestContent,"").trim();
                 let newMermaid = await genMindMap(newContent,true);
                 try {
-                    await mermaid.parse(code);
-                    editor.setValue(code);
+                    await mermaid.parse(newMermaid);
+                    editor.setValue(newMermaid);
                     latestContent = chat.textContent.trim();
 
                 } catch (e) {
                     console.error("Mermaid Error: ", e);
                 }
-                onLoadingH2 = false;
+                                    onLoadingH2 = false;
+
 
         }
 
